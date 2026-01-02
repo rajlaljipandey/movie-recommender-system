@@ -1,4 +1,12 @@
+# Virtual environment
 venv/
+
+# Python cache
 __pycache__/
 .ipynb_checkpoints/
+
+# Large model files
+models/similarity.pkl
+
+# Environment variables
 .env

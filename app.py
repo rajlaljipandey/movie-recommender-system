@@ -1,5 +1,7 @@
 import streamlit as st
 import joblib
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 # --------------------------------------------------
 # PAGE CONFIG
@@ -10,7 +12,7 @@ st.set_page_config(
 )
 
 # --------------------------------------------------
-# THEME TOGGLE (kept as-is)
+# THEME TOGGLE
 # --------------------------------------------------
 theme = st.toggle("🌙 Dark Mode")
 
@@ -18,31 +20,26 @@ theme = st.toggle("🌙 Dark Mode")
 # NETFLIX-INSPIRED THEME (CSS ONLY)
 # --------------------------------------------------
 if theme:
-    # DARK / NETFLIX MODE
     st.markdown("""
     <style>
     .stApp {
         background-color: #141414;
         color: white;
     }
-
     h1 {
         color: #E50914;
         text-align: center;
         font-weight: 900;
         letter-spacing: -1px;
     }
-
     h3 {
         color: white;
         text-align: center;
     }
-
     p {
         color: #b3b3b3;
         text-align: center;
     }
-
     .stButton > button {
         background-color: #E50914;
         color: white;
@@ -52,13 +49,11 @@ if theme:
         border: none;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-
     .stButton > button:hover {
         background-color: #f6121d;
         transform: scale(1.05);
         box-shadow: 0 6px 18px rgba(0,0,0,0.6);
     }
-
     .movie-card {
         background-color: #181818;
         color: white;
@@ -70,44 +65,32 @@ if theme:
         box-shadow: 0 4px 12px rgba(0,0,0,0.4);
         transition: transform 0.25s ease, box-shadow 0.25s ease;
     }
-
     .movie-card:hover {
         transform: scale(1.12);
         box-shadow: 0 20px 40px rgba(0,0,0,0.8);
         cursor: pointer;
     }
-
-    .stSelectbox, .stSlider {
-        background-color: #2a2a2a;
-        border-radius: 6px;
-    }
     </style>
     """, unsafe_allow_html=True)
-
 else:
-    # LIGHT MODE (Netflix-inspired but light)
     st.markdown("""
     <style>
     .stApp {
         background-color: #f5f5f5;
     }
-
     h1 {
         color: #E50914;
         text-align: center;
         font-weight: 900;
     }
-
     h3 {
         color: #111;
         text-align: center;
     }
-
     p {
         color: #444;
         text-align: center;
     }
-
     .stButton > button {
         background-color: #E50914;
         color: white;
@@ -117,13 +100,11 @@ else:
         border: none;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-
     .stButton > button:hover {
         background-color: #f6121d;
         transform: scale(1.05);
         box-shadow: 0 6px 14px rgba(0,0,0,0.25);
     }
-
     .movie-card {
         background-color: white;
         color: #111;
@@ -135,7 +116,6 @@ else:
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         transition: transform 0.25s ease, box-shadow 0.25s ease;
     }
-
     .movie-card:hover {
         transform: scale(1.12);
         box-shadow: 0 20px 40px rgba(0,0,0,0.3);
@@ -145,20 +125,30 @@ else:
     """, unsafe_allow_html=True)
 
 # --------------------------------------------------
-# LOAD MODELS
+# LOAD MOVIES DATA
 # --------------------------------------------------
 @st.cache_resource
-def load_models():
-    movies = joblib.load("models/movies.pkl")
-    similarity = joblib.load("models/similarity.pkl")
-    return movies, similarity
+def load_movies():
+    return joblib.load("models/movies.pkl")
 
-movies, similarity = load_models()
+movies = load_movies()
 
 # --------------------------------------------------
-# RECOMMENDER LOGIC (UNCHANGED)
+# BUILD SIMILARITY MATRIX (AUTO-GENERATED)
 # --------------------------------------------------
-movie_index = {title: idx for idx, title in enumerate(movies['title'])}
+@st.cache_resource
+def build_similarity(movies_df):
+    tfidf = TfidfVectorizer(max_features=5000, stop_words="english")
+    vectors = tfidf.fit_transform(movies_df["tags"]).toarray()
+    similarity = cosine_similarity(vectors)
+    return similarity
+
+similarity = build_similarity(movies)
+
+# --------------------------------------------------
+# RECOMMENDER LOGIC
+# --------------------------------------------------
+movie_index = {title: idx for idx, title in enumerate(movies["title"])}
 
 def recommend(movie_name, top_n=5):
     idx = movie_index[movie_name]
@@ -167,7 +157,7 @@ def recommend(movie_name, top_n=5):
     return [movies.iloc[i[0]].title for i in distances[1:top_n+1]]
 
 # --------------------------------------------------
-# UI (UNCHANGED CONTENT)
+# UI
 # --------------------------------------------------
 st.title("🎬 Movie Recommendation System")
 st.markdown(
@@ -177,39 +167,33 @@ st.markdown(
 
 selected_movie = st.selectbox(
     "Choose a movie",
-    movies['title'].values
+    movies["title"].values
 )
 
 top_n = st.slider(
     "Number of recommendations",
-    min_value=3,
-    max_value=10,
-    value=5
+    3, 10, 5
 )
 
 # --------------------------------------------------
 # SHOW RECOMMENDATIONS
 # --------------------------------------------------
 if st.button("Recommend"):
-    recommendations = recommend(selected_movie, top_n)
+    with st.spinner("Finding similar movies..."):
+        recommendations = recommend(selected_movie, top_n)
 
     st.subheader("🎬 Recommended Movies")
 
     cols = st.columns(3)
-
     for idx, movie in enumerate(recommendations):
         with cols[idx % 3]:
             st.markdown(
-                f"""
-                <div class="movie-card">
-                    🎥 {movie}
-                </div>
-                """,
+                f"<div class='movie-card'>🎥 {movie}</div>",
                 unsafe_allow_html=True
             )
 
 # --------------------------------------------------
-# FOOTER (UNCHANGED CONTENT)
+# FOOTER
 # --------------------------------------------------
 st.markdown(
     """
