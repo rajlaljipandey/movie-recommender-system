@@ -4,6 +4,8 @@
 A **Netflix-inspired Movie Recommendation System** built using **Machine Learning and Streamlit**.  
 This web app recommends similar movies based on content similarity using **TF-IDF Vectorization** and **Cosine Similarity**.
 
+🔗 Live App: https://movie-recommender-raj-lalji-pandey.streamlit.app/
+
 ---
 
 ## 🔥 Features
